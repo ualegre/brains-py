@@ -32,11 +32,6 @@ def generate_sinewave(freq, t, amplitude, fs, phase=np.zeros(7)):
 def normalise(x, eps=1e-5):
     return ((x - np.mean(x)) / (np.sqrt(np.var(x) + eps)))
 
-def get_current_to_voltage_vars(v_min, v_max, i_min, i_max):
-    scale = ((v_min - v_max) / (i_min - i_max))
-    offset = v_max - scale * i_max
-    return scale, offset
-
 def map_to_voltage(x, v_min, v_max):
     scale = ((v_min - v_max) / (x.min() - x.max()))
     offset = v_max - scale * x.max()
