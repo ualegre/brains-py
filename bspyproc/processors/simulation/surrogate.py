@@ -18,6 +18,7 @@ class SurrogateModel(NeuralNetworkModel):
 
     def __init__(self, configs):
         self.load_model(configs)
+        self.to(TorchUtils.data_type)
         if 'input_indices' in configs and 'input_electrode_no' in configs:
             self.input_indices = configs['input_indices']
             self.control_voltage_indices = get_control_voltage_indices(self.input_indices, configs['input_electrode_no'])
@@ -41,7 +42,7 @@ class SurrogateModel(NeuralNetworkModel):
 
     def init_noise_configs(self):
         if 'noise' in self.configs:
-            print(f"The model has a gaussian noise based on a MSE of {torch.sqrt(torch.tensor([self.configs['noise']]))}")
+            print(f"The model has a gaussian noise based on a MSE of {torch.tensor([self.configs['noise']])}")
             self.error = TorchUtils.format_tensor(torch.sqrt(torch.tensor([self.configs['noise']])))
             self.forward_processed = self.forward_amplification_and_noise
         else:
@@ -91,3 +92,7 @@ class SurrogateModel(NeuralNetworkModel):
 
     def get_amplification_value(self):
         return self.info['data_info']['processor']['amplification']
+
+    def get_output_(self, inputs, control_voltages):
+        y = merge_inputs_and_control_voltages_in_numpy(inputs, control_voltages, self.input_indices, self.control_voltage_indices)
+        return self.get_output(y)
