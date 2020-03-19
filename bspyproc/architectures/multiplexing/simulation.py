@@ -8,6 +8,7 @@ import numpy as np
 import torch.nn as nn
 from bspyproc.utils.pytorch import TorchUtils
 from bspyproc.processors.processor_mgr import get_processor
+from bspyproc.utils.input import map_to_voltage
 
 
 class DNPUArchitecture(nn.Module):
@@ -42,8 +43,11 @@ class DNPUArchitecture(nn.Module):
 #        return torch.tensor(1.8 / (4 * std)) * self.clip(x, cut) + self.conversion_offset
         # torch.save(voltage,'voltage.pt')
 
-    def clip(self, x, clipping_value):
-        return torch.clamp(x, min=-clipping_value, max=clipping_value)
+    def clip(self, x, clipping_min, clipping_max=None):
+        if clipping_max is None:
+            clipping_min = -clipping_min
+            clipping_max = -1 * clipping_min
+        return torch.clamp(x, min=clipping_min, max=clipping_max)
 
 
 class TwoToOneDNPU(DNPUArchitecture):
@@ -81,10 +85,20 @@ class TwoToTwoToOneDNPU(DNPUArchitecture):
 
 
     def init_current_to_voltage_conversion_variables(self):
-        self.std = 1
-        self.cut = 2 * self.std
-        self.current_to_voltage_conversion_amplitude = (self.min_voltage - self.max_voltage) / (-4 * self.std)
-        self.current_to_voltage_conversion_offset = ((((2 * self.std) - 1) / (2 * self.std)) * self.max_voltage) + (self.min_voltage / (2 * self.std))
+        # self.std = 1
+        # self.cut = 2 * self.std
+        # self.current_to_voltage_conversion_amplitude = (self.min_voltage - self.max_voltage) / (-4 * self.std)
+        # self.current_to_voltage_conversion_offset = ((((2 * self.std) - 1) / (2 * self.std)) * self.max_voltage) + (self.min_voltage / (2 * self.std))
+        self.amplification_value =  self.input_node1.get_amplification_value()
+        max_current_val = 94.295
+        min_current_val = -345
+        self.cut_max = max_current_val
+        self.cut_min = min_current_val
+        
+        # amplitude, offset = get_current_to_voltage_vars(self.min_voltage, self.max_voltage, min_current_val/self.amplification_value, max_current_val/ self.amplification_value)
+        # self.current_to_voltage_conversion_amplitude = amplitude
+        # self.current_to_voltage_conversion_offset = offset
+
 
     def init_model(self, configs):
         self.input_node1 = get_processor(configs)  # DNPU(in_dict['input_node1'], path=path)
@@ -133,8 +147,8 @@ class TwoToTwoToOneDNPU(DNPUArchitecture):
 
     def process_layer(self, x1, x2, bn, clipping_value_1, clipping_value_2, i):
         # Clip values at 400
-        x1 = self.clip(x1, clipping_value=clipping_value_1)
-        x2 = self.clip(x2, clipping_value=clipping_value_2)
+        x1 = self.clip(x1, clipping_min=clipping_value_1)
+        x2 = self.clip(x2, clipping_min=clipping_value_2)
 
         bnx = self.batch_norm(bn, x1, x2)
         bnx = self.current_to_voltage(bnx, self.input_node1.input_indices)
@@ -146,8 +160,8 @@ class TwoToTwoToOneDNPU(DNPUArchitecture):
         torch.save(x2[:, 0], os.path.join(self.output_path, 'device_layer_' + str(i) + '_output_1.pt'))
 
         # Clip values at 400
-        x1 = self.clip(x1, clipping_value=clipping_value_1)
-        x2 = self.clip(x2, clipping_value=clipping_value_2)
+        x1 = self.clip(x1, clipping_min=clipping_value_1)
+        x2 = self.clip(x2, clipping_min=clipping_value_2)
         torch.save(x1[:, 0], os.path.join(self.output_path, 'bn_afterclip_' + str(i) + '_0.pt'))
         torch.save(x2[:, 0], os.path.join(self.output_path, 'bn_afterclip_' + str(i) + '_1.pt'))
 
@@ -163,9 +177,13 @@ class TwoToTwoToOneDNPU(DNPUArchitecture):
         return bnx  # torch.cat((bnx[0][:, None], bnx[1][:, None]), dim=1)
 
     def current_to_voltage(self, x, electrode):
-        clipped_input = self.clip(x, self.cut)
-        amplified_input = self.current_to_voltage_conversion_amplitude[electrode] * clipped_input
-        return amplified_input + self.current_to_voltage_conversion_offset[electrode]
+        # clipped_input = self.clip(x, self.cut_min, self.cut_max)
+        # amplified_input = self.current_to_voltage_conversion_amplitude[electrode] * clipped_input
+        # return amplified_input + self.current_to_voltage_conversion_offset[electrode]
+        aux = torch.zeros_like(x)
+        for i in range(len(electrode)):
+            aux[:,i] =  map_to_voltage(x[:,i],self.min_voltage[electrode[i]], self.max_voltage[electrode[i]])
+        return aux # map_to_voltage(x,self.min_voltage[electrode], self.max_voltage[electrode])
 
     def reset(self):
         # This function needs to be checked
