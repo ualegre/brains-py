@@ -9,7 +9,6 @@ from bspyproc.utils.waveform import generate_waveform, generate_slopped_plato
 from bspyproc.utils.control import get_control_voltage_indices
 from bspyproc.utils.pytorch import TorchUtils
 from bspyproc.utils.waveform import generate_slopped_plato, generate_waveform, generate_waveform_from_masked_data
-from bspyproc.utils.input import map_to_voltage
 
 
 class ArchitectureProcessor():
@@ -102,10 +101,10 @@ class TwoToTwoToOneProcessor(ArchitectureProcessor):
     #     return generate_waveform(inputs, self.configs['waveform']['amplitude_lengths'], self.configs['waveform']['slope_lengths'])
 
     def process_control_voltages(self, shape):
-        result = np.zeros([shape, len(self.control_voltages)])
+        result = np.zeros([shape,len(self.control_voltages)])
         slopped_plato = generate_slopped_plato(self.configs['waveform']['slope_lengths'], shape)
         for i in range(len(self.control_voltages)):
-            result[:, i] = self.control_voltages[i] * slopped_plato
+            result[:,i] = self.control_voltages[i] * slopped_plato
         return result
 
     def merge_inputs_and_control_voltages(self, inputs, control_voltages, node_no=5, node_electrode_no=7):
@@ -119,12 +118,7 @@ class TwoToTwoToOneProcessor(ArchitectureProcessor):
         return result
 
     def current_to_voltage(self, x, electrode):
-        # return (self.current_to_voltage_conversion_amplitude[electrode] * self.clip(x, cut_min=-self.cut, cut_max=self.cut)) + self.current_to_voltage_conversion_offset[electrode]
-        #clipped_input = self.clip(x, cut_min=self.cut_min, cut_max=self.cut_max)
-        #for i in range(len(electrode)):
-        #    x[:,i] =  map_to_voltage(x[:,i],self.min_voltage[electrode[i]], self.max_voltage[electrode[i]])
-        #return x
-        return map_to_voltage(x, self.min_voltage[electrode], self.max_voltage[electrode])
+        return (self.current_to_voltage_conversion_amplitude[electrode] * self.clip(x, cut_min=-self.cut, cut_max=self.cut)) + self.current_to_voltage_conversion_offset[electrode]
 
     def get_input_indices(self, input_indices):
         result = np.zeros(len(input_indices) * 5, dtype=int)
@@ -253,14 +247,10 @@ class TwoToTwoToOneProcessor(ArchitectureProcessor):
         electrode_amplitude = np.asarray(state_dict['data_info']['input_data']['amplitude'])
         self.min_voltage = electrode_offset - electrode_amplitude
         self.max_voltage = electrode_offset + electrode_amplitude
-        # self.std = 1
-        # self.cut = 2 * self.std
-        # self.current_to_voltage_conversion_amplitude = (self.min_voltage - self.max_voltage) / (-4 * self.std)
-        # self.current_to_voltage_conversion_offset = ((((2 * self.std) - 1) / (2 * self.std)) * self.max_voltage) + (self.min_voltage / (2 * self.std))
-        max_current_val = 94.295
-        min_current_val = -345
-        self.cut_max = max_current_val
-        self.cut_min = min_current_val
+        self.std = 1
+        self.cut = 2 * self.std
+        self.current_to_voltage_conversion_amplitude = (self.min_voltage - self.max_voltage) / (-4 * self.std)
+        self.current_to_voltage_conversion_offset = ((((2 * self.std) - 1) / (2 * self.std)) * self.max_voltage) + (self.min_voltage / (2 * self.std))
         self.amplification = np.asarray(state_dict['data_info']['processor']['amplification'])
 
     def set_control_voltages(self, state_dict):
