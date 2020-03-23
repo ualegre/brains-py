@@ -58,8 +58,8 @@ class TwoToTwoToOneDNPU(DNPUArchitecture):
         super().__init__(configs)
         self.init_model(configs)
         self.init_clipping_values(configs['waveform']['output_clipping_value'])
-        self.bn1 = TorchUtils.format_tensor(nn.BatchNorm1d(2, affine=False))
-        self.bn2 = TorchUtils.format_tensor(nn.BatchNorm1d(2, affine=False))
+        self.bn1 = TorchUtils.format_tensor(nn.BatchNorm1d(2, affine=False,track_running_stats=self.configs['batch_norm']['use_running_stats']))
+        self.bn2 = TorchUtils.format_tensor(nn.BatchNorm1d(2, affine=False,track_running_stats=self.configs['batch_norm']['use_running_stats']))
         self.init_current_to_voltage_conversion_variables()
         self.init_control_voltage_no()
         if self.configs['debug']:
@@ -174,8 +174,8 @@ class TwoToTwoToOneDNPU(DNPUArchitecture):
         self.hidden_node1.reset()
         self.hidden_node2.reset()
         self.output_node.reset()
-        self.bn1 = TorchUtils.format_tensor(nn.BatchNorm1d(2, affine=False))
-        self.bn2 = TorchUtils.format_tensor(nn.BatchNorm1d(2, affine=False))
+        self.bn1 = TorchUtils.format_tensor(nn.BatchNorm1d(2, affine=False,track_running_stats=self.configs['batch_norm']['use_running_stats']))
+        self.bn2 = TorchUtils.format_tensor(nn.BatchNorm1d(2, affine=False,track_running_stats=self.configs['batch_norm']['use_running_stats']))
 
     def get_control_voltages(self):
         w1 = next(self.input_node1.parameters())[0]
@@ -188,4 +188,21 @@ class TwoToTwoToOneDNPU(DNPUArchitecture):
     def load_state_dict(self, state_dict):
         self.info = state_dict['info']
         del state_dict['info']
+        state_dict = self.load_bn(state_dict)
         super().load_state_dict(state_dict)
+    
+    def load_bn(self,state_dict):
+        if self.configs['batch_norm']['use_running_stats'] is False:
+            if 'bn1.running_var' in state_dict:
+                del state_dict['bn1.running_var']
+            if 'bn1.running_mean' in state_dict:
+                del state_dict['bn1.running_mean']
+            if 'bn1.num_batches_tracked' in state_dict:
+                del state_dict['bn1.num_batches_tracked']
+            if 'bn2.running_var' in state_dict:
+                del state_dict['bn2.running_var']
+            if 'bn2.running_mean' in state_dict:
+                del state_dict['bn2.running_mean']
+            if 'bn2.num_batches_tracked' in state_dict:
+                del state_dict['bn2.num_batches_tracked']
+        return state_dict
