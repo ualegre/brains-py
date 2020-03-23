@@ -103,10 +103,10 @@ class TwoToTwoToOneProcessor(ArchitectureProcessor):
     #     return generate_waveform(inputs, self.configs['waveform']['amplitude_lengths'], self.configs['waveform']['slope_lengths'])
 
     def process_control_voltages(self, shape):
-        result = np.zeros([shape,len(self.control_voltages)])
+        result = np.zeros([shape, len(self.control_voltages)])
         slopped_plato = generate_slopped_plato(self.configs['waveform']['slope_lengths'], shape)
         for i in range(len(self.control_voltages)):
-            result[:,i] = self.control_voltages[i] * slopped_plato
+            result[:, i] = self.control_voltages[i] * slopped_plato
         return result
 
     def merge_inputs_and_control_voltages(self, inputs, control_voltages, node_no=5, node_electrode_no=7):
@@ -220,15 +220,23 @@ class TwoToTwoToOneProcessor(ArchitectureProcessor):
 
         return bnx
 
-    def set_batch_normalistaion_values(self, state_dict):
+    def set_batch_normalisation_values(self, state_dict):
         self.bn1 = {}
         self.bn2 = {}
-        self.bn1['mean'] = TorchUtils.get_numpy_from_tensor(state_dict['bn1.running_mean'])
-        self.bn1['var'] = TorchUtils.get_numpy_from_tensor(state_dict['bn1.running_var'])
-        self.bn1['batch_no'] = TorchUtils.get_numpy_from_tensor(state_dict['bn1.num_batches_tracked'])
-        self.bn2['mean'] = TorchUtils.get_numpy_from_tensor(state_dict['bn2.running_mean'])
-        self.bn2['var'] = TorchUtils.get_numpy_from_tensor(state_dict['bn2.running_var'])
-        self.bn2['batch_no'] = TorchUtils.get_numpy_from_tensor(state_dict['bn2.num_batches_tracked'])
+        if self.configs['batch_norm']['use_running_stats']:
+            self.bn1['mean'] = TorchUtils.get_numpy_from_tensor(state_dict['bn1.running_mean'])
+            self.bn1['var'] = TorchUtils.get_numpy_from_tensor(state_dict['bn1.running_var'])
+            self.bn1['batch_no'] = TorchUtils.get_numpy_from_tensor(state_dict['bn1.num_batches_tracked'])
+            self.bn2['mean'] = TorchUtils.get_numpy_from_tensor(state_dict['bn2.running_mean'])
+            self.bn2['var'] = TorchUtils.get_numpy_from_tensor(state_dict['bn2.running_var'])
+            self.bn2['batch_no'] = TorchUtils.get_numpy_from_tensor(state_dict['bn2.num_batches_tracked'])
+        else:
+            self.bn1['mean'] = np.array([0,0])
+            self.bn1['var'] = np.array([0,0])
+            self.bn1['batch_no'] = np.array([0])
+            self.bn2['mean'] = np.array([0,0])
+            self.bn2['var'] = np.array([0,0])
+            self.bn2['batch_no'] = np.array([0]) 
 
     # def set_scale_and_offset(self, state_dict):
     #     if 'scale' in state_dict:
@@ -239,7 +247,8 @@ class TwoToTwoToOneProcessor(ArchitectureProcessor):
 
     def load_state_dict(self, model_dict):
         # self.set_scale_and_offset(model_dict['state_dict'])
-        self.set_batch_normalistaion_values(model_dict)
+
+        self.set_batch_normalisation_values(model_dict)
         self.set_control_voltages(model_dict)
         self.set_current_to_voltage_conversion_params(model_dict['info'])
         self.model_dict = model_dict
