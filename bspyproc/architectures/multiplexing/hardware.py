@@ -53,8 +53,10 @@ class ArchitectureProcessor():
         print(f"Using dataset mean and var: {self.configs['batch_norm']['use_running_stats']}")
         print(f'Running mean: {mean}')
         print(f'Current batch mean: {np.mean(x)}')
+        print(f'MSE mean {((mean-np.mean(x))**2).mean()}')
         print(f'Running var: {var}')
         print(f'Current batch mean: {np.var(x)}')
+        print(f'MSE mean {((var-np.var(x))**2).mean()}')
 
     def batch_norm(self, x, mean, var):
         self.debug_batch_norm(x, mean, var)
