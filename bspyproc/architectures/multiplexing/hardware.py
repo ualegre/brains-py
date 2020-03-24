@@ -272,3 +272,31 @@ class TwoToTwoToOneProcessor(ArchitectureProcessor):
         control_voltages[15:20] = TorchUtils.get_numpy_from_tensor(state_dict['hidden_node2.bias'])
         control_voltages[20:25] = TorchUtils.get_numpy_from_tensor(state_dict['output_node.bias'])
         self.control_voltages = control_voltages
+
+class TwoToTwoToOneProcessorBatchNorm(TwoToTwoToOneProcessor):
+    def __init__(self, configs):
+        super().__init__(configs)
+
+    def get_output_(self, inputs, mask):
+        y = super().get_output_(inputs,mask)[:,0]
+        bnx = self.batch_norm(y[self.mask], self.bn3['mean'], self.bn3['var'])
+        return generate_waveform_from_masked_data(bnx, self.configs['waveform']['amplitude_lengths'], self.configs['waveform']['slope_lengths'])[:,np.newaxis]
+
+
+    def set_batch_normalisation_values(self, state_dict):
+        super().set_batch_normalisation_values(state_dict)
+        self.bn3 = {}
+        if self.configs['batch_norm']['use_running_stats']:
+            self.bn3['mean'] = TorchUtils.get_numpy_from_tensor(state_dict['bn3.running_mean'])
+            self.bn3['var'] = TorchUtils.get_numpy_from_tensor(state_dict['bn3.running_var'])
+            self.bn3['batch_no'] = TorchUtils.get_numpy_from_tensor(state_dict['bn3.num_batches_tracked'])
+        else:
+            self.bn3['mean'] = np.array([0,0])
+            self.bn3['var'] = np.array([0,0])
+            self.bn3['batch_no'] = np.array([0])
+
+    def load_state_dict(self, model_dict):
+        self.set_batch_normalisation_values(model_dict)
+        self.set_control_voltages(model_dict)
+        self.set_current_to_voltage_conversion_params(model_dict['info'])
+        self.model_dict = model_dict
