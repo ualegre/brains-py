@@ -1,5 +1,5 @@
 from bspyproc.utils.pytorch import TorchUtils
-from bspyproc.architectures.multiplexing.simulation import TwoToOneDNPU, TwoToTwoToOneDNPU
+from bspyproc.architectures.multiplexing.simulation import TwoToOneDNPU, TwoToTwoToOneDNPU, TwoToTwoToOneDNPUBatchNorm
 from bspyproc.architectures.multiplexing.hardware import TwoToOneProcessor, TwoToTwoToOneProcessor
 
 
@@ -37,5 +37,7 @@ def get_dnpu_architecture(configs):
         return TwoToOneDNPU(configs)
     elif configs['architecture_type'] == '221':
         return TwoToTwoToOneDNPU(configs)
+    elif configs['architecture_type'] == '221bn': 
+        return TwoToTwoToOneDNPUBatchNorm(configs)
     else:
         raise NotImplementedError(f"Architecture type {configs['architecture_type']} is not recognised. The architecture_type has to be either '21' or '221' (as a String)")

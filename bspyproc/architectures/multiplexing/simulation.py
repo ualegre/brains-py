@@ -7,6 +7,7 @@ import os
 import numpy as np
 import torch.nn as nn
 from bspyproc.utils.pytorch import TorchUtils
+from bspyproc.utils.input import map_to_voltage
 from bspyproc.processors.processor_mgr import get_processor
 
 
@@ -50,6 +51,8 @@ class TwoToOneDNPU(DNPUArchitecture):
 
     def __init__(self, configs):
         pass
+
+
 
 
 class TwoToTwoToOneDNPU(DNPUArchitecture):
@@ -206,3 +209,31 @@ class TwoToTwoToOneDNPU(DNPUArchitecture):
             if 'bn2.num_batches_tracked' in state_dict:
                 del state_dict['bn2.num_batches_tracked']
         return state_dict
+
+
+class TwoToTwoToOneDNPUBatchNorm(TwoToTwoToOneDNPU):
+        def __init__(self, configs):
+            super().__init__(configs)
+            self.super_forward = self.forward
+            self.forward = self.own_forward
+            self.bn3 = TorchUtils.format_tensor(nn.BatchNorm1d(1, affine=False,track_running_stats=self.configs['batch_norm']['use_running_stats']))
+
+        def reset(self):
+            self.bn3 = TorchUtils.format_tensor(nn.BatchNorm1d(1, affine=False,track_running_stats=self.configs['batch_norm']['use_running_stats']))
+            super().reset()
+
+        def own_forward(self,x):
+            y = self.super_forward(x)
+            return  self.bn3(y)
+            # y = map_to_voltage(y, 0, 1)
+            # return torch.clamp(y,0,1)
+
+        def load_bn(self,state_dict):
+            if self.configs['batch_norm']['use_running_stats'] is False:
+                if 'bn3.running_var' in state_dict:
+                    del state_dict['bn3.running_var']
+                if 'bn3.running_mean' in state_dict:
+                    del state_dict['bn3.running_mean']
+                if 'bn3.num_batches_tracked' in state_dict:
+                    del state_dict['bn3.num_batches_tracked']
+            return super().load_bn(state_dict)
