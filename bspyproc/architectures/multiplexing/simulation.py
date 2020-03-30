@@ -85,9 +85,10 @@ class TwoToTwoToOneDNPU(DNPUArchitecture):
 
     def init_current_to_voltage_conversion_variables(self):
         self.std = 1
-        self.cut = 2 * self.std
-        self.current_to_voltage_conversion_amplitude = (self.min_voltage - self.max_voltage) / (-4 * self.std)
-        self.current_to_voltage_conversion_offset = ((((2 * self.std) - 1) / (2 * self.std)) * self.max_voltage) + (self.min_voltage / (2 * self.std))
+        self.cut_val = 2
+        self.cut = self.cut_val * self.std
+        self.current_to_voltage_conversion_amplitude = (self.min_voltage - self.max_voltage) / ((-2 * self.cut_val) * self.std)
+        self.current_to_voltage_conversion_offset = ((((self.cut_val * self.std) - 1) / (self.cut_val * self.std)) * self.max_voltage) + (self.min_voltage / (self.cut_val * self.std))
 
     def init_model(self, configs):
         self.input_node1 = get_processor(configs)  # DNPU(in_dict['input_node1'], path=path)
