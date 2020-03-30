@@ -216,15 +216,25 @@ class TwoToTwoToOneDNPUBatchNorm(TwoToTwoToOneDNPU):
             super().__init__(configs)
             self.super_forward = self.forward
             self.forward = self.own_forward
-            self.bn3 = TorchUtils.format_tensor(nn.BatchNorm1d(1, affine=False,track_running_stats=self.configs['batch_norm']['use_running_stats']))
-
+            self.bn3 = TorchUtils.format_tensor(nn.BatchNorm1d(1, affine=True,track_running_stats=self.configs['batch_norm']['use_running_stats']))
+            self.activation = TorchUtils.format_tensor(nn.Sigmoid())
+       
         def reset(self):
-            self.bn3 = TorchUtils.format_tensor(nn.BatchNorm1d(1, affine=False,track_running_stats=self.configs['batch_norm']['use_running_stats']))
+            self.bn3 = TorchUtils.format_tensor(nn.BatchNorm1d(1, affine=True,track_running_stats=self.configs['batch_norm']['use_running_stats']))
+            self.activation = TorchUtils.format_tensor(nn.Sigmoid())
             super().reset()
 
         def own_forward(self,x):
             y = self.super_forward(x)
-            return  self.bn3(y)
+            if self.configs['debug']:
+                torch.save(y, os.path.join(self.output_path, 'device_layer_3.pt'))
+            y = self.bn3(y)
+            if self.configs['debug']:
+                torch.save(y, os.path.join(self.output_path, f'bn_afterbatch_3.pt'))
+            result =  self.activation(y)
+            if self.configs['debug']:
+                torch.save(y, os.path.join(self.output_path, f'output.pt'))
+            return result
             # y = map_to_voltage(y, 0, 1)
             # return torch.clamp(y,0,1)
 

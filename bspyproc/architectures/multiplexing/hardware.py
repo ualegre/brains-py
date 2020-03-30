@@ -79,6 +79,9 @@ class ArchitectureProcessor():
 
     def get_control_voltages(self, x):
         return x[self.control_voltage_indices]
+    
+    def sigmoid(self, x):
+        return 1/(1 + np.exp(-x))
 
 
 class TwoToOneProcessor(ArchitectureProcessor):
@@ -279,9 +282,17 @@ class TwoToTwoToOneProcessorBatchNorm(TwoToTwoToOneProcessor):
 
     def get_output_(self, inputs, mask):
         y = super().get_output_(inputs,mask)[:,0]
+        if self.configs['debug']:
+            np.save(os.path.join(self.output_path, 'device_layer_3'), y)
         bnx = self.batch_norm(y[self.mask], self.bn3['mean'], self.bn3['var'])
-        return generate_waveform_from_masked_data(bnx, self.configs['waveform']['amplitude_lengths'], self.configs['waveform']['slope_lengths'])[:,np.newaxis]
-
+        bnx = (self.bn3['weight'] * bnx) + self.bn3['bias']
+        if self.configs['debug']:
+            np.save(os.path.join(self.output_path, 'bn_afterbatch_3'), bnx)
+        bnx = self.sigmoid(bnx)
+        result =  generate_waveform_from_masked_data(bnx, self.configs['waveform']['amplitude_lengths'], self.configs['waveform']['slope_lengths'])[:,np.newaxis]
+        if self.configs['debug']:
+            np.save(os.path.join(self.output_path, 'output'), bnx)
+        return result
 
     def set_batch_normalisation_values(self, state_dict):
         super().set_batch_normalisation_values(state_dict)
@@ -294,6 +305,14 @@ class TwoToTwoToOneProcessorBatchNorm(TwoToTwoToOneProcessor):
             self.bn3['mean'] = np.array([0,0])
             self.bn3['var'] = np.array([0,0])
             self.bn3['batch_no'] = np.array([0])
+        if 'bn3.weight' in state_dict:
+            self.bn3['weight'] = TorchUtils.get_numpy_from_tensor(state_dict['bn3.weight'])
+        else:
+            self.bn3['weight'] = np.array([1])
+        if 'bn3.bias' in state_dict:
+            self.bn3['bias'] = TorchUtils.get_numpy_from_tensor(state_dict['bn3.bias'])
+        else:
+            self.bn3['bias'] = np.array([0])
 
     def load_state_dict(self, model_dict):
         self.set_batch_normalisation_values(model_dict)
