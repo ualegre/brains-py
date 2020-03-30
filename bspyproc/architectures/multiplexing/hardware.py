@@ -261,10 +261,11 @@ class TwoToTwoToOneProcessor(ArchitectureProcessor):
         electrode_amplitude = np.asarray(state_dict['data_info']['input_data']['amplitude'])
         self.min_voltage = electrode_offset - electrode_amplitude
         self.max_voltage = electrode_offset + electrode_amplitude
-        self.std = 1
-        self.cut = 2 * self.std
-        self.current_to_voltage_conversion_amplitude = (self.min_voltage - self.max_voltage) / (-4 * self.std)
-        self.current_to_voltage_conversion_offset = ((((2 * self.std) - 1) / (2 * self.std)) * self.max_voltage) + (self.min_voltage / (2 * self.std))
+        self.std = 2
+        self.cut_val = 2
+        self.cut = self.cut_val * self.std
+        self.current_to_voltage_conversion_amplitude = (self.min_voltage - self.max_voltage) / ((-2 * self.cut))
+        self.current_to_voltage_conversion_offset = ((((self.cut) - 1) / (self.cut)) * self.max_voltage) + (self.min_voltage / (self.cut))
         self.amplification = np.asarray(state_dict['data_info']['processor']['amplification'])
 
     def set_control_voltages(self, state_dict):
