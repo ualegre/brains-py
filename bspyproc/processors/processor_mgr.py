@@ -3,6 +3,7 @@ from bspyproc.processors.simulation.dopanet import DNPU
 from bspyproc.processors.simulation.surrogate import SurrogateModel
 from bspyproc.processors.simulation.network import NeuralNetworkModel
 from bspyproc.processors.hardware.setup_mgr import CDAQtoCDAQ, CDAQtoNiDAQ
+from bspyproc.processors.nn.basic import RingNet
 
 
 def get_processor(configs):
@@ -35,5 +36,7 @@ def get_simulation_processor(configs):
         return SurrogateModel(configs)
     elif configs['processor_type'] == 'dnpu':
         return DNPU(configs)
+    elif configs['processor_type'] == 'nnring':
+        return RingNet(configs)
     else:
         raise NotImplementedError(f"{configs['processor_type']} 'processor_type' configuration is not recognised. The simulation type has to be defined as 'nn', 'surrogate' or 'dpnu'. ")
