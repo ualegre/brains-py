@@ -45,6 +45,7 @@ class NeuralNetworkModel(nn.Module):
 
     def reset(self):
         print("Warning: Reset function in TorchModel not implemented.")
+        self.model.reset_parameters()
 
     def get_output(self, input_matrix):
         with torch.no_grad():
